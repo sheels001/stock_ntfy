@@ -1,0 +1,32 @@
+name: Daily Stock Alert
+
+on:
+  schedule:
+    # GitHub Actions cron is always UTC and does NOT adjust for US DST.
+    # 10:00 AM ET is:
+    #   14:00 UTC during EDT (mid-March to early November)
+    #   15:00 UTC during EST (early November to mid-March)
+    # We trigger the job at both times; stock_alert.py checks the real
+    # US/Eastern clock and only actually sends the notification when it's
+    # truly 10 AM ET, so only one of these two runs per day does anything.
+    - cron: "0 14 * * 1-5"   # ~10:00 AM EDT, weekdays
+    - cron: "0 15 * * 1-5"   # ~10:00 AM EST, weekdays
+  workflow_dispatch: {}       # lets you manually trigger a test run from the GitHub UI
+
+jobs:
+  send-alert:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run stock alert
+        env:
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+        run: python stock_alert.py
